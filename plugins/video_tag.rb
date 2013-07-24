@@ -1,32 +1,37 @@
 # Title: Simple Video tag for Jekyll
 # Author: Brandon Mathis http://brandonmathis.com
-# Description: Easily output MPEG4 HTML5 video with a flash backup.
-#
-# Syntax {% video url/to/video [width height] [url/to/poster] %}
-#
-# Example:
-# {% video http://site.com/video.mp4 720 480 http://site.com/poster-frame.jpg %}
-#
-# Output:
-# <video width='720' height='480' preload='none' controls poster='http://site.com/poster-frame.jpg'>
-#   <source src='http://site.com/video.mp4' type='video/mp4; codecs=\"avc1.42E01E, mp4a.40.2\"'/>
-# </video>
-#
+# Description: Easily write HTML5 video (mp4,webm,ogv) with a flash backup.
 
-module Jekyll
-
+module Octopress
   class VideoTag < Liquid::Tag
-    @video = nil
-    @poster = ''
-    @height = ''
-    @width = ''
+    @video   = nil
+    @poster  = ''
+    @height  = ''
+    @width   = ''
+    Poster   = /(:?[^ ]+\.(jpg|jpeg|gif|png))/i
+    Preload  = /(:?preload: *(:?\S+))/i
 
     def initialize(tag_name, markup, tokens)
-      if markup =~ /(https?:\S+)(\s+(https?:\S+))?(\s+(https?:\S+))?(\s+(\d+)\s(\d+))?(\s+(https?:\S+))?/i
+      @preload = "none"
+      if markup =~ Poster
+        @poster = $1
+      end
+      markup = markup.sub(Poster, '').strip
+
+      if markup =~ Preload
+        @preload =  $2
+      end
+      markup = markup.sub(Preload, '').strip
+
+      if markup =~ Poster
+        @poster = $1
+      end
+      markup = markup.sub(Poster, '').strip
+
+      if markup =~ /(\S+\.\S+)(\s+(\S+\.\S+))?(\s+(\S+\.\S+))?(\s+(\d+)\s(\d+))?/i
         @video  = [$1, $3, $5].compact
         @width  = $7
         @height = $8
-        @poster = $10
       end
       super
     end
@@ -35,11 +40,11 @@ module Jekyll
       output = super
       type = {
         'mp4' => "type='video/mp4; codecs=\"avc1.42E01E, mp4a.40.2\"'",
-        'ogv' => "type='video/ogg; codecs=theora, vorbis'",
-        'webm' => "type='video/webm; codecs=vp8, vorbis'"
+        'ogv' => "type='video/ogg; codecs=\"theora, vorbis\"'",
+        'webm' => "type='video/webm; codecs=\"vp8, vorbis\"'"
       }
-      if @video.size > 0
-        video =  "<video width='#{@width}' height='#{@height}' preload='none' controls poster='#{@poster}'>"
+      if @video && @video.size > 0
+        video =  "<video controls poster='#{@poster}' width='#{@width}' height='#{@height}' preload='#{@preload}'>"
         @video.each do |v|
           t = v.match(/([^\.]+)$/)[1]
           video += "<source src='#{v}' #{type[t]}>"
@@ -52,5 +57,4 @@ module Jekyll
   end
 end
 
-Liquid::Template.register_tag('video', Jekyll::VideoTag)
-
+Liquid::Template.register_tag('video', Octopress::VideoTag)
