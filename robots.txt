@@ -1,0 +1,4 @@
+Sitemap: http://www.kylebarbary.com/sitemapindex.xml
+
+User-Agent: *
+Host: www.kylebarbary.com

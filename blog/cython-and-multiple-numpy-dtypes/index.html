@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html prefix="og: http://ogp.me/ns# article: http://ogp.me/ns/article#
+" lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cython and multiple NumPy dtypes | Kyle Barbary</title>
+<link href="../../assets/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/baguetteBox.min.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/rst.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/code.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/theme.css" rel="stylesheet" type="text/css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" integrity="sha384-gfdkjb5BdAXd+lj+gudLWI+BXq4IuLW5IT+brZEZsLFm++aCMlF1V92rMkPaX4PP" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Kaushan+Script" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Roboto+Slab:400,100,300,700" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="alternate" type="application/rss+xml" title="RSS" href="../../rss.xml">
+<link rel="canonical" href="http://www.kylebarbary.com/blog/cython-and-multiple-numpy-dtypes/">
+<link rel="icon" href="../../favicon.ico" sizes="32x32">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Kyle Barbary">
+<link rel="prev" href="../julia-vs-numpy-arrays/" title="Julia versus NumPy arrays" type="text/html">
+<link rel="next" href="../switch-to-python-3/" title="Five reasons to switch to Python 3" type="text/html">
+<meta property="og:site_name" content="Kyle Barbary">
+<meta property="og:title" content="Cython and multiple NumPy dtypes">
+<meta property="og:url" content="http://www.kylebarbary.com/blog/cython-and-multiple-numpy-dtypes/">
+<meta property="og:description" content="Earlier this summer, I was attempting to use Cython to wrap a C library that
+deals with arrays. There's a excellent tutorial on the Cython wiki
+on this topic. In the example given there, the Python fu">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2014-10-26T12:00:00Z">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-expand-md static-top mb-4
+navbar-dark bg-dark
+"><div class="container">
+<!-- This keeps the margins nice -->
+        <a class="navbar-brand" href="http://www.kylebarbary.com/">
+
+            <span id="blog-title">Kyle Barbary</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="bs-navbar">
+            <ul class="navbar-nav mr-auto">
+<li class="nav-item">
+<a href="../../software" class="nav-link">code</a>
+                </li>
+<li class="nav-item">
+<a href="../../blog" class="nav-link">blog</a>
+
+                
+            </li>
+</ul>
+<ul class="navbar-nav navbar-right"></ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        
+        
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name">
+<a href="." class="u-url">Cython and multiple NumPy dtypes</a>  
+         <small>
+            <time class="published dt-published" datetime="2014-10-26T12:00:00+00:00" itemprop="datePublished">2014-10-26</time></small>
+    </h1>
+
+       <div class="metadata">
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <div>
+<p>Earlier this summer, I was attempting to use Cython to wrap a C library that
+deals with arrays. There's a excellent <a class="reference external" href="https://github.com/cython/cython/wiki/tutorials-NumpyPointerToC">tutorial</a> on the Cython wiki
+on this topic. In the example given there, the Python function can
+only accept arrays of a single datatype: C double (or equivalently,
+<tt class="docutils literal">numpy.float64</tt>). The cython function signature</p>
+<pre class="code cython"><a name="rest_code_a6c6d3ce1cc245abb2b2351279f99c51-1"></a><span class="k">def</span> <span class="nf">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">double</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mf">2</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">"c"</span><span class="p">]</span> <span class="nb">input</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">,</span> <span class="n">double</span> <span class="n">value</span><span class="p">):</span>
+</pre>
+<p>means that an error will be raised if the input array has any numpy
+dtype other than float64. But, why should the <tt class="docutils literal">multiply</tt> function
+operate only on arrays of doubles? Python users are used to having a
+single function transparently operate on numpy arrays of many
+different dtypes. Let's make the single <tt class="docutils literal">multiply</tt> function work on
+both float and double arrays!</p>
+<p>This supposes that you have multiple C functions for
+different array types. We want our Python function to check the
+datatype of the input array (at runtime) and then <em>dispatch</em> to the
+appropriate C function for that data type (or raise an Exception of
+the datatype is not supported).</p>
+<p>I eventually found a post in a <a class="reference external" href="https://groups.google.com/d/msg/cython-users/VW_AH2HEFfU/vmrl_QntubsJ">thread on cython-users</a> that
+describes how to do this, and the following is based on that answer.</p>
+<p>First, suppose we have two separate implementations of the C function for
+different data types:</p>
+<pre class="code c"><a name="rest_code_dd2da91d183547e8bace033121b629af-1"></a><span class="cm">/*</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-2"></a><span class="cm">c_multiply.c</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-3"></a>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-4"></a><span class="cm">simple C functions that alters data passed in via a pointer</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-5"></a>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-6"></a><span class="cm">*/</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-7"></a>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-8"></a><span class="kt">void</span> <span class="nf">c_multiply_dbl</span><span class="p">(</span><span class="kt">double</span><span class="o">*</span> <span class="n">array</span><span class="p">,</span> <span class="kt">double</span> <span class="n">multiplier</span><span class="p">,</span> <span class="kt">int</span> <span class="n">m</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-9"></a>    <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-10"></a>    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">m</span><span class="o">*</span><span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-11"></a>      <span class="n">array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">multiplier</span><span class="p">;</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-12"></a>    <span class="k">return</span><span class="p">;</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-13"></a><span class="p">}</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-14"></a>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-15"></a><span class="kt">void</span> <span class="nf">c_multiply_flt</span><span class="p">(</span><span class="kt">float</span><span class="o">*</span> <span class="n">array</span><span class="p">,</span> <span class="kt">double</span> <span class="n">multiplier</span><span class="p">,</span> <span class="kt">int</span> <span class="n">m</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-16"></a>    <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-17"></a>    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">m</span><span class="o">*</span><span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-18"></a>      <span class="n">array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">multiplier</span><span class="p">;</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-19"></a>    <span class="k">return</span><span class="p">;</span>
+<a name="rest_code_dd2da91d183547e8bace033121b629af-20"></a><span class="p">}</span>
+</pre>
+<p>The Cython code will be as follows:</p>
+<pre class="code cython"><a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-1"></a><span class="k">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-2"></a><span class="k">cimport</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-3"></a>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-4"></a><span class="k">cdef</span> <span class="kr">extern</span><span class="p">:</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-5"></a>    <span class="n">void</span> <span class="n">c_multiply_dbl</span><span class="p">(</span><span class="n">double</span><span class="o">*</span> <span class="n">array</span><span class="p">,</span> <span class="n">double</span> <span class="n">multiplier</span><span class="p">,</span> <span class="nb">int</span> <span class="n">m</span><span class="p">,</span> <span class="nb">int</span> <span class="n">n</span><span class="p">)</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-6"></a>    <span class="n">void</span> <span class="n">c_multiply_flt</span><span class="p">(</span><span class="nb">float</span><span class="o">*</span> <span class="n">array</span><span class="p">,</span> <span class="n">double</span> <span class="n">multiplier</span><span class="p">,</span> <span class="nb">int</span> <span class="n">m</span><span class="p">,</span> <span class="nb">int</span> <span class="n">n</span><span class="p">)</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-7"></a>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-8"></a><span class="k">def</span> <span class="nf">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="nb">input</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">,</span> <span class="n">double</span> <span class="n">value</span><span class="p">):</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-9"></a>     <span class="k">cdef</span> <span class="kt">int</span> <span class="nf">m</span><span class="p">,</span> <span class="nf">n</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-10"></a>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-11"></a>     <span class="c"># declare a numpy array of raw bytes (unsigned 8-bit integers)</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-12"></a>     <span class="c"># and assign it to a view of the input data.</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-13"></a>     <span class="k">cdef</span> <span class="kt">np</span>.<span class="kt">uint8_t</span>[<span class="p">:,</span> <span class="p">:]</span> <span class="nb">buffer</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-14"></a>     <span class="nb">buffer</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-15"></a>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-16"></a>     <span class="c"># get shape</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-17"></a>     <span class="n">m</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mf">0</span><span class="p">],</span> <span class="nb">input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-18"></a>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-19"></a>     <span class="c"># choose the appropriate routine based</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-20"></a>     <span class="k">if</span> <span class="nb">input</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">:</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-21"></a>         <span class="n">c_multiply_dbl</span><span class="p">(</span><span class="o">&lt;</span><span class="n">double</span> <span class="o">*&gt;&amp;</span><span class="nb">buffer</span><span class="p">[</span><span class="mf">0</span><span class="p">,</span> <span class="mf">0</span><span class="p">],</span> <span class="n">value</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-22"></a>     <span class="k">elif</span> <span class="nb">input</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">:</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-23"></a>         <span class="n">c_multiply_flt</span><span class="p">(</span><span class="o">&lt;</span><span class="nb">float</span> <span class="o">*&gt;&amp;</span><span class="nb">buffer</span><span class="p">[</span><span class="mf">0</span><span class="p">,</span> <span class="mf">0</span><span class="p">],</span> <span class="n">value</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-24"></a>     <span class="k">else</span><span class="p">:</span>
+<a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-25"></a>         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">"dtype {0} not supported"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+</pre>
+<p>The key line is <tt class="docutils literal">buffer = input.view(np.uint8)</tt> where buffer is
+declared at compile time as a 2-d numpy array of raw bytes. Having
+this compile-time type allows us to later perform the operation
+<tt class="docutils literal">&amp;buffer[0, 0]</tt> in order to get the address of the underlying data
+buffer in the array. We would not have been allowed to perform this
+operation directly on the input array. Note that
+<tt class="docutils literal">input.view(np.uint8)</tt> does not copy the data in <tt class="docutils literal">input</tt> so this
+is a relatively cheap operation.</p>
+<p>The code can then be built with the following <tt class="docutils literal">setup.py</tt> file:</p>
+<pre class="code python"><a name="rest_code_ac910f7699f84206a9144733a462e409-1"></a><span class="ch">#!/usr/bin/env python</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-2"></a>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-3"></a><span class="kn">from</span> <span class="nn">distutils.core</span> <span class="kn">import</span> <span class="n">setup</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-4"></a><span class="kn">from</span> <span class="nn">distutils.extension</span> <span class="kn">import</span> <span class="n">Extension</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-5"></a><span class="kn">from</span> <span class="nn">Cython.Distutils</span> <span class="kn">import</span> <span class="n">build_ext</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-6"></a>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-7"></a><span class="kn">import</span> <span class="nn">numpy</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-8"></a>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-9"></a><span class="n">setup</span><span class="p">(</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-10"></a>    <span class="n">cmdclass</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'build_ext'</span><span class="p">:</span> <span class="n">build_ext</span><span class="p">},</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-11"></a>    <span class="n">ext_modules</span> <span class="o">=</span> <span class="p">[</span><span class="n">Extension</span><span class="p">(</span><span class="s2">"multiply"</span><span class="p">,</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-12"></a>                             <span class="n">sources</span><span class="o">=</span><span class="p">[</span><span class="s2">"multiply.pyx"</span><span class="p">,</span> <span class="s2">"c_multiply.c"</span><span class="p">],</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-13"></a>                             <span class="n">include_dirs</span><span class="o">=</span><span class="p">[</span><span class="n">numpy</span><span class="o">.</span><span class="n">get_include</span><span class="p">()])],</span>
+<a name="rest_code_ac910f7699f84206a9144733a462e409-14"></a>    <span class="p">)</span>
+</pre>
+<p>and by then running <tt class="docutils literal">python setup.py build_ext <span class="pre">--inplace</span></tt>. This creates
+a Python module <tt class="docutils literal">multiply.so</tt> that you can import in a Python session.
+We can verify that it works on 2-d arrays of both 32-bit and 64-bit floats!</p>
+<pre class="code python"><a name="rest_code_96369e134a3340709645b60916b8a6df-1"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-2"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">multiply</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-3"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-4"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">multiply</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-5"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">x</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-6"></a><span class="n">array</span><span class="p">([[</span> <span class="mf">2.</span><span class="p">,</span>  <span class="mf">2.</span><span class="p">],</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-7"></a>       <span class="p">[</span> <span class="mf">2.</span><span class="p">,</span>  <span class="mf">2.</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-8"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-9"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">multiply</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-10"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">y</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-11"></a><span class="n">array</span><span class="p">([[</span> <span class="mf">2.</span><span class="p">,</span>  <span class="mf">2.</span><span class="p">],</span>
+<a name="rest_code_96369e134a3340709645b60916b8a6df-12"></a>      <span class="p">[</span> <span class="mf">2.</span><span class="p">,</span>  <span class="mf">2.</span><span class="p">]])</span>
+</pre>
+</div>
+    </div>
+    <aside class="postpromonav"><nav><ul class="pager hidden-print">
+<li class="previous">
+                <a href="../julia-vs-numpy-arrays/" rel="prev" title="Julia versus NumPy arrays">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../switch-to-python-3/" rel="next" title="Five reasons to switch to Python 3">Next post</a>
+            </li>
+        </ul></nav></aside></article><!--End of body content--><footer id="footer"><hr>
+© 2020  Kyle Barbary |
+built with <a href="http://getnikola.com" rel="nofollow">nikola</a> |
+<a href="http://github.com/kbarbary/website">site source</a> and
+<a href="https://github.com/kbarbary/website/tree/master/themes/iceland">theme</a>
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/jquery.min.js"></script><script src="../../assets/js/popper.min.js"></script><script src="../../assets/js/bootstrap.min.js"></script><script src="../../assets/js/baguetteBox.min.js"></script><script src="../../assets/js/moment-with-locales.min.js"></script><script src="../../assets/js/fancydates.min.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-48255812-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

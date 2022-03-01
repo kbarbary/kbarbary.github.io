@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html prefix="og: http://ogp.me/ns# article: http://ogp.me/ns/article#
+" lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Batch Normalization Backpropagation | Kyle Barbary</title>
+<link href="../../assets/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/baguetteBox.min.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/rst.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/code.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/theme.css" rel="stylesheet" type="text/css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" integrity="sha384-gfdkjb5BdAXd+lj+gudLWI+BXq4IuLW5IT+brZEZsLFm++aCMlF1V92rMkPaX4PP" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Kaushan+Script" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Roboto+Slab:400,100,300,700" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="alternate" type="application/rss+xml" title="RSS" href="../../rss.xml">
+<link rel="canonical" href="http://www.kylebarbary.com/blog/batch-norm/">
+<link rel="icon" href="../../favicon.ico" sizes="32x32">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Kyle Barbary">
+<link rel="prev" href="../refactoring/" title="The Joy of Code Refactoring" type="text/html">
+<meta property="og:site_name" content="Kyle Barbary">
+<meta property="og:title" content="Batch Normalization Backpropagation">
+<meta property="og:url" content="http://www.kylebarbary.com/blog/batch-norm/">
+<meta property="og:description" content="Batch normalization is a technique for making neural networks easier to train.
+Although these days, any deep learning framework will implement batch norm and its derivative for you, it is useful to se">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2018-05-12T19:02:02Z">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-expand-md static-top mb-4
+navbar-dark bg-dark
+"><div class="container">
+<!-- This keeps the margins nice -->
+        <a class="navbar-brand" href="http://www.kylebarbary.com/">
+
+            <span id="blog-title">Kyle Barbary</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="bs-navbar">
+            <ul class="navbar-nav mr-auto">
+<li class="nav-item">
+<a href="../../software" class="nav-link">code</a>
+                </li>
+<li class="nav-item">
+<a href="../../blog" class="nav-link">blog</a>
+
+                
+            </li>
+</ul>
+<ul class="navbar-nav navbar-right"></ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        
+        
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name">
+<a href="." class="u-url">Batch Normalization Backpropagation</a>  
+         <small>
+            <time class="published dt-published" datetime="2018-05-12T19:02:02+00:00" itemprop="datePublished">2018-05-12</time></small>
+    </h1>
+
+       <div class="metadata">
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <div>
+<p>Batch normalization is a technique for making neural networks easier to train.
+Although these days, any deep learning framework will implement batch norm and its derivative for you, it is useful to see how to derive the gradient of batch norm. It seems to be often left as "an exercise for the reader" in deep learning courses. I had some trouble getting the correct derivation of the gradient on the first try so I've outlined the derivation here.</p>
+<p>Notation:</p>
+<ul class="simple">
+<li>
+<span class="math">\(z_{ij}\)</span>: Values after affine transformation (matrix multiplication by parameter <span class="math">\(\mathbf{W}\)</span>).</li>
+<li>
+<span class="math">\(\hat{z}_{ij}\)</span>: Values after normalization.</li>
+<li>
+<span class="math">\(\tilde{z}_{ij}\)</span>: Values after scaling by parameters <span class="math">\(\gamma_i\)</span> and <span class="math">\(\beta_i\)</span>.
+<span class="math">\(f\)</span>: Scalar cost function.</li>
+</ul>
+<p>where <span class="math">\(i = 1...n_\rm{out}\)</span> (number of layer outputs) and <span class="math">\(j = 1...m\)</span> (number of examples in batch).</p>
+<p>Equations for batch normalization:</p>
+<div class="math">
+\begin{equation*}
+\mu_i = \frac{1}{m} \sum_j z_{ij}
+\end{equation*}
+</div>
+<div class="math">
+\begin{equation*}
+\sigma_i^2 = \frac{1}{m} \sum_j^m (z_{ij} - \mu_i)^2
+\end{equation*}
+</div>
+<div class="math">
+\begin{equation*}
+\hat{z}_{ij} = \frac{z_{ij} - \mu_i}{\sqrt{\sigma_i^2 + \epsilon}}
+\end{equation*}
+</div>
+<div class="math">
+\begin{equation*}
+\tilde{z}_{ij} = \gamma_i \hat{z}_{ij} + \beta_i
+\end{equation*}
+</div>
+<div class="section" id="goal">
+<h2>Goal</h2>
+<ul class="simple">
+<li>Given: <span class="math">\(\partial f / \partial \tilde{z}_{ij}\)</span> the array of derivatives of the scalar loss <span class="math">\(f\)</span> with respect to the <em>output</em> <span class="math">\(\tilde{z}_{ij}\)</span>.</li>
+<li>Derive: <span class="math">\(\partial f / \partial \gamma_i\)</span>, <span class="math">\(\partial f / \partial \beta_i\)</span>, the vectors of derivatives with respect to our parameters and <span class="math">\(\partial f / \partial z_{ij}\)</span>, the array of derivatives with respect to the layer <em>inputs</em>.</li>
+</ul>
+<p>We will start with the last equation, and derive the gradient with respect to the two parameters <span class="math">\(\gamma_i\)</span> and <span class="math">\(\beta_i\)</span>.</p>
+</div>
+<div class="section" id="derivation-partial-f-partial-gamma-i">
+<h2>Derivation: <span class="math">\(\partial f / \partial \gamma_i\)</span>
+</h2>
+<p>We'll use the derivation of <span class="math">\(\partial f / \partial \gamma_i\)</span> to demonstrate the general method of using the chain rule. Using the chain rule, the parital derivative we're after can be written in terms of the partial derivative we are given, and one we will derive from the above equations:</p>
+<div class="math">
+\begin{equation*}
+\frac{\partial f}{\partial \gamma_i} = \sum_{i'j'} \frac{\partial f}{\partial \tilde{z}_{i'j'}} \frac{\partial \tilde{z}_{i'j'}}{\partial \gamma_i}
+\end{equation*}
+</div>
+<p>Note that, in general, we must always sum over <span class="math">\(i'\)</span> and <span class="math">\(j'\)</span> in ths manner, as <span class="math">\(\gamma_i\)</span> can affect <span class="math">\(f\)</span> through any entry in <span class="math">\(\tilde{z}_{i'j'}\)</span>. <strong>This is the key point</strong>: even though <span class="math">\(\tilde{z}\)</span> and <span class="math">\(\gamma\)</span> both have the same size in the first dimension (indexed by <span class="math">\(i\)</span>), any entry in <span class="math">\(\tilde{z}\)</span> might depend on any entry in <span class="math">\(\gamma\)</span>: <span class="math">\(\tilde{z}_{11}\)</span> might depend on <span class="math">\(\gamma_1\)</span>, <span class="math">\(\gamma_2\)</span>, <span class="math">\(\gamma_3\)</span>, etc. and all these partial derivatives must be summed.</p>
+<p>In this particular case, it happens to be simpler. We can see from the equation for <span class="math">\(\tilde{z} that changing \)</span> has no effect on <span class="math">\(\tilde{z}_{i'j'}\)</span> for <span class="math">\(i' \ne i\)</span>.
+Or in other words, <span class="math">\(\partial \tilde{z}_{i'j'} / \partial \gamma_i = 0\)</span> for <span class="math">\(i' \ne i\)</span>.
+So, only terms with <span class="math">\(i' = i\)</span> actually contribute to the sum <span class="math">\(\sum_{i'j'}\)</span>, and we can take <span class="math">\(i'\)</span> out of the sum and replace <span class="math">\(i'\)</span> with <span class="math">\(i\)</span> everywhere:</p>
+<div class="math">
+\begin{align*}
+\frac{\partial f}{\partial \gamma_i} &amp;= \sum_{j'} \frac{\partial f}{\partial \tilde{z}_{ij'}} \frac{\partial \tilde{z}_{ij'}}{\partial \gamma_i} \\
+                                     &amp;= \boxed{ \sum_{j'} \frac{\partial f}{\partial \tilde{z}_{ij'}}  \hat{z}_{ij'} }
+\end{align*}
+</div>
+<p>Or in Python:</p>
+<pre class="literal-block">
+dgamma = np.sum(dZtilde * Zhat, axis=1, keepdims=True)
+</pre>
+</div>
+<div class="section" id="derivation-partial-f-partial-beta-i">
+<h2>Derivation: <span class="math">\(\partial f / \partial \beta_i\)</span>
+</h2>
+<p>This one is easy. Following the same logic as above,</p>
+<div class="math">
+\begin{align*}
+\frac{\partial f}{\partial \beta_i} &amp;= \sum_{j'} \frac{\partial f}{\partial \tilde{z}_{ij'}} \frac{\partial \tilde{z}_{ij'}}{\partial \beta_i} \\
+                                    &amp;=  \boxed{ \sum_{j'} \frac{\partial f}{\partial \tilde{z}_{ij'}} }
+\end{align*}
+</div>
+<p>In Python:</p>
+<pre class="literal-block">
+dbeta = np.sum(dZtilde, axis=1, keepdims=True)
+</pre>
+</div>
+<div class="section" id="derivation-partial-f-partial-z-ij">
+<h2>Derivation: <span class="math">\(\partial f / \partial z_{ij}\)</span>
+</h2>
+<p>First, get the derivative with respect to <span class="math">\(\hat{z}_{ij}\)</span>:</p>
+<div class="math">
+\begin{align*}
+\frac{\partial f}{\partial \hat{z}_{ij}} &amp;= \sum_{i'j'} \frac{\partial f}{\partial \tilde{z}_{i'j'}} \frac{\partial \tilde{z}_{i'j'}}{\partial \hat{z}_{ij}} \\
+                                         &amp;= \sum_{i'j'} \frac{\partial f}{\partial \tilde{z}_{i'j'}}  \delta_{ii'} \delta{jj'} \gamma_i' \\
+                                         &amp;= \boxed{ \frac{\partial f}{\partial \tilde{z}_{ij}} \gamma_i }
+\end{align*}
+</div>
+<p>In Python:</p>
+<pre class="literal-block">
+dZhat = dZtilde * gamma
+</pre>
+<p>Now, <strong>the final and most tedious part</strong>: given <span class="math">\(\partial f / \partial \hat{z}_{ij}\)</span>, go the rest of the way.</p>
+<div class="math">
+\begin{equation*}
+\frac{\partial f}{\partial z_{ij}} = \sum_{i'j'} \frac{\partial f}{\partial \hat{z}_{i'j'}} \frac{\partial \hat{z}_{i'j'}}{\partial z_{ij}}
+\end{equation*}
+</div>
+<p>Changing <span class="math">\(z_{ij}\)</span> has no effect on <span class="math">\(\hat{z}_{i'j'}\)</span> for <span class="math">\(i' \ne i\)</span>.
+Or in other words, <span class="math">\(\frac{\partial \hat{z}_{i'j'}}{\partial z_{ij}} = 0\)</span> for <span class="math">\(i' \ne i\)</span>.
+So, only terms with <span class="math">\(i' = i\)</span> actually contributes to the sum <span class="math">\(\sum_{i'j'}\)</span>, and we can take <span class="math">\(i'\)</span> out of the sum and replace <span class="math">\(i'\)</span> with <span class="math">\(i\)</span> everywhere:</p>
+<div class="math">
+\begin{equation*}
+\frac{\partial f}{\partial z_{ij}} = \sum_{j'} \frac{\partial f}{\partial \hat{z}_{ij'}} \frac{\partial \hat{z}_{ij'}}{\partial z_{ij}}
+\end{equation*}
+</div>
+<p>Substitute in the equation for <span class="math">\(\hat{z}_{ij}\)</span>:</p>
+<div class="math">
+\begin{equation*}
+\frac{\partial f}{\partial z_{ij}} = \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} \frac{\partial}{\partial z_{ij}} \left( (z_{ij'} - \mu_i)(\sigma_i^2 + \epsilon)^{-1/2} \right)
+\end{equation*}
+</div>
+<p>Expand the parital:</p>
+<div class="math">
+\begin{equation*}
+\frac{\partial f}{\partial z_{ij}} = \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} \left( \frac{\partial z_{ij'}}{\partial z_{ij}} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{\partial \mu_i}{\partial z_{ij}} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{2} (z_{ij'} - \mu_i)(\sigma_i^2 + \epsilon)^{-3/2} \frac{\partial \sigma_i^2}{\partial z_{ij}} \right)
+\end{equation*}
+</div>
+<p>For the first term, we realize that <span class="math">\(\partial z_{ij'} / \partial z_{ij}\)</span> is 1 if <span class="math">\(j' = j\)</span>, otherwise 0, so we can replace it with <span class="math">\(\delta_{j,j'}\)</span>:</p>
+<div class="math">
+\begin{equation*}
+\frac{\partial z_{ij'}}{\partial z_{ij}} = \delta_{j, j'}
+\end{equation*}
+</div>
+<p>For the second and third terms, we will need <span class="math">\(\partial \mu_i / \partial z_{ij}\)</span> and <span class="math">\(\partial \sigma_i^2 / \partial z_{ij}\)</span>. Substituting in the equations for <span class="math">\(\mu_i\)</span> and <span class="math">\(\sigma_i^2\)</span>,</p>
+<div class="math">
+\begin{align*}
+\frac{\partial \mu_i}{\partial z_{ij}}      &amp;= \frac{1}{m} \sum_{j'=1}^m \frac{\partial z_{ij'}}{\partial z_{ij}} = \frac{1}{m} \\
+\frac{\partial \sigma_i^2}{\partial z_{ij}} &amp;= \frac{2}{m} \sum_{j'=1}^m (z_{ij'} - \mu_i)\left(\frac{\partial z_{ij'}}{\partial z_{ij}} - \frac{\partial \mu_i}{\partial z_{ij}} \right) \\
+                                            &amp;= \frac{2}{m} \sum_{j'=1}^m (z_{ij'} - \mu_i) \delta_{j,j'} - \frac{2}{m} \sum_{j'=1}^m  (z_{ij'} - \mu_i) \frac{1}{m} \\
+                                            &amp;= \frac{2}{m} (z_{ij} - \mu_i) - \frac{2}{m^2} \Big( \sum_{j'=1}^m  z_{ij'} - \sum_{j'=1}^m \mu_i \Big) \\
+                                            &amp;= \frac{2}{m} (z_{ij} - \mu_i) - \frac{2}{m^2} (m \mu_i - m \mu_i) \\
+                                            &amp;= \frac{2}{m} (z_{ij} - \mu_i)
+\end{align*}
+</div>
+<p>Plug these intermediate partial derivatives back into our main equation and then simplify:</p>
+<div class="math">
+\begin{align*}
+\frac{\partial f}{\partial z_{ij}} &amp;= \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} \left( \delta_{j,j'} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{m} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{2} (z_{ij'} - \mu_i)(\sigma_i^2 + \epsilon)^{-3/2} \left(\frac{2}{m}\right)(z_{ij} - \mu_i) \right) \\
+                                   &amp;= \frac{\partial f}{\partial \hat{z}_{ij}} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{m} \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}}  (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{m} \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} (z_{ij'} - \mu_i)(\sigma_i^2 + \epsilon)^{-3/2} (z_{ij} - \mu_i)
+\end{align*}
+</div>
+<p>Realizing that some expressions in the last term can be replaced by <span class="math">\(\hat{z}_{ij}\)</span> and <span class="math">\(\hat{z}_{ij'}\)</span>, we finally get</p>
+<div class="math">
+\begin{equation*}
+\boxed{ \frac{\partial f}{\partial z_{ij}} = \frac{1}{m \sqrt{\sigma_i^2 + \epsilon}} \left( m \frac{\partial f}{\partial \hat{z}_{ij}} - \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} - \hat{z}_{ij} \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} \hat{z}_{ij'} \right) }
+\end{equation*}
+</div>
+<p>In Python:</p>
+<pre class="literal-block">
+mu = np.mean(Z, axis=1, keepdims=True)
+sigma2 = np.mean((Z - mu)**2, axis=1, keepdims=True)
+dZ = (1. / (m * np.sqrt(sigma2 + epsilon))
+         * (m * dZhat
+            - np.sum(dZhat, axis=1, keepdims=True)
+            - Zhat * np.sum(dZhat * Zhat, axis=1, keepdims=True)))
+</pre>
+</div>
+</div>
+    </div>
+    <aside class="postpromonav"><nav><ul class="pager hidden-print">
+<li class="previous">
+                <a href="../refactoring/" rel="prev" title="The Joy of Code Refactoring">Previous post</a>
+            </li>
+        </ul></nav></aside><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML" integrity="sha256-SDRP1VVYu+tgAGKhddBSl5+ezofHKZeI+OzxakbIe/Y=" crossorigin="anonymous"></script><script type="text/x-mathjax-config">
+        MathJax.Hub.Config({tex2jax: {inlineMath: [['$latex ','$'], ['\\(','\\)']]}});
+        </script></article><!--End of body content--><footer id="footer"><hr>
+© 2020  Kyle Barbary |
+built with <a href="http://getnikola.com" rel="nofollow">nikola</a> |
+<a href="http://github.com/kbarbary/website">site source</a> and
+<a href="https://github.com/kbarbary/website/tree/master/themes/iceland">theme</a>
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/jquery.min.js"></script><script src="../../assets/js/popper.min.js"></script><script src="../../assets/js/bootstrap.min.js"></script><script src="../../assets/js/baguetteBox.min.js"></script><script src="../../assets/js/moment-with-locales.min.js"></script><script src="../../assets/js/fancydates.min.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-48255812-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

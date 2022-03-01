@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html prefix="og: http://ogp.me/ns# article: http://ogp.me/ns/article#
+" lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Five reasons to switch to Python 3 | Kyle Barbary</title>
+<link href="../../assets/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/baguetteBox.min.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/rst.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/code.css" rel="stylesheet" type="text/css">
+<link href="../../assets/css/theme.css" rel="stylesheet" type="text/css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" integrity="sha384-gfdkjb5BdAXd+lj+gudLWI+BXq4IuLW5IT+brZEZsLFm++aCMlF1V92rMkPaX4PP" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Kaushan+Script" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Roboto+Slab:400,100,300,700" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="alternate" type="application/rss+xml" title="RSS" href="../../rss.xml">
+<link rel="canonical" href="http://www.kylebarbary.com/blog/switch-to-python-3/">
+<link rel="icon" href="../../favicon.ico" sizes="32x32">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Kyle Barbary">
+<link rel="prev" href="../cython-and-multiple-numpy-dtypes/" title="Cython and multiple NumPy dtypes" type="text/html">
+<link rel="next" href="../refactoring/" title="The Joy of Code Refactoring" type="text/html">
+<meta property="og:site_name" content="Kyle Barbary">
+<meta property="og:title" content="Five reasons to switch to Python 3">
+<meta property="og:url" content="http://www.kylebarbary.com/blog/switch-to-python-3/">
+<meta property="og:description" content="I recently took the plunge and switched to using Python 3 on a daily
+basis. I found it to be surprisingly straightforward. As a newly
+minted Python 3 user, I am now licensed (perhaps even obligated) t">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2015-08-23T00:00:00Z">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-expand-md static-top mb-4
+navbar-dark bg-dark
+"><div class="container">
+<!-- This keeps the margins nice -->
+        <a class="navbar-brand" href="http://www.kylebarbary.com/">
+
+            <span id="blog-title">Kyle Barbary</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="bs-navbar">
+            <ul class="navbar-nav mr-auto">
+<li class="nav-item">
+<a href="../../software" class="nav-link">code</a>
+                </li>
+<li class="nav-item">
+<a href="../../blog" class="nav-link">blog</a>
+
+                
+            </li>
+</ul>
+<ul class="navbar-nav navbar-right"></ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        
+        
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name">
+<a href="." class="u-url">Five reasons to switch to Python 3</a>  
+         <small>
+            <time class="published dt-published" datetime="2015-08-23T00:00:00+00:00" itemprop="datePublished">2015-08-23</time></small>
+    </h1>
+
+       <div class="metadata">
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <div>
+<p>I recently took the plunge and switched to using Python 3 on a daily
+basis. I found it to be surprisingly straightforward. As a newly
+minted Python 3 user, I am now licensed (perhaps even obligated) to
+nag Python 2 users about switching. Honestly, for scientific computing
+there are <a class="reference external" href="https://www.python.org/dev/peps/pep-0465/">not yet</a> any
+killer features in Python 3 that make a switch tempting. However,
+there are still some good reasons for scientific practitioners to
+switch. Here are five of them:</p>
+<div class="section" id="you-will-have-to-eventually">
+<h2>1. You will have to eventually.</h2>
+<p>Python will be around for a long time. Python 2 will not. You'll
+have to switch eventually, so why not do it on your own time, well
+before Python 2 <a class="reference external" href="http://legacy.python.org/dev/peps/pep-0373/">reaches end-of-life support</a> in 2020?</p>
+</div>
+<div class="section" id="it-s-not-that-hard">
+<h2>2. It's not that hard.</h2>
+<p>Most numeric-heavy code (e.g., without much string handling or text
+I/O) will require few and straightforward changes.  If you have
+comprehensive tests for your code, switching to Python 3 is really just a
+matter of running the tests and looking up what needs to be changed
+for tests to pass. If you don't have tests, you probably developed
+the code by running it and seeing if it worked. In that case, run
+it with Python 3 and fix things until it works. If you are
+switching permanently, you can use the <a class="reference external" href="https://wiki.python.org/moin/2to3">2to3</a> tool to make most changes
+automatically. If you need to support both Python 2 and 3
+simultaneously, the <a class="reference external" href="http://pythonhosted.org/six/">six</a> library
+has made it relatively painless.</p>
+</div>
+<div class="section" id="at-this-point-it-won-t-get-much-easier">
+<h2>3. At this point it won't get much easier.</h2>
+<p>The majority of widely-used third party packages <a class="reference external" href="https://python3wos.appspot.com/">support Python 3</a>. In particular, all the major
+packages for scientific work (NumPy, SciPy, Matplotlib, etc) have
+fully supported Python 3 for some time now. While it depends on
+what you use, the likelihood is that all packages you use already
+support Python 3. If you find one that doesn't, open an issue (or
+add a comment on an existing one) in the issue tracker for the
+package.</p>
+</div>
+<div class="section" id="python-3-will-soon-become-better-supported-than-python-2">
+<h2>4. Python 3 will soon become better supported than Python 2.</h2>
+<p>This one is a bit of a prediction. As <a class="reference external" href="http://astrofrog.github.io/blog/2015/05/09/2015-survey-results/">more and more developers
+switch to using Python 3 on a daily basis</a>,
+new features in third-party packages will become better "tested"
+(through use) on Python 3. This is particularly true of smaller
+packages without full test coverage.</p>
+</div>
+<div class="section" id="be-part-of-the-solution">
+<h2>5. Be part of the solution.</h2>
+<p>The Python 2 to 3 transition sort of sucks. The sooner the vast
+majority of the community transitions, the sooner we can all stop
+spending time stuck awkwardly between two similar but incompatible
+languages. Developers can spend less time dealing with the dual
+support and more time developing awesome new features.</p>
+</div>
+</div>
+    </div>
+    <aside class="postpromonav"><nav><ul class="pager hidden-print">
+<li class="previous">
+                <a href="../cython-and-multiple-numpy-dtypes/" rel="prev" title="Cython and multiple NumPy dtypes">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../refactoring/" rel="next" title="The Joy of Code Refactoring">Next post</a>
+            </li>
+        </ul></nav></aside></article><!--End of body content--><footer id="footer"><hr>
+© 2020  Kyle Barbary |
+built with <a href="http://getnikola.com" rel="nofollow">nikola</a> |
+<a href="http://github.com/kbarbary/website">site source</a> and
+<a href="https://github.com/kbarbary/website/tree/master/themes/iceland">theme</a>
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/jquery.min.js"></script><script src="../../assets/js/popper.min.js"></script><script src="../../assets/js/bootstrap.min.js"></script><script src="../../assets/js/baguetteBox.min.js"></script><script src="../../assets/js/moment-with-locales.min.js"></script><script src="../../assets/js/fancydates.min.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-48255812-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

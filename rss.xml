@@ -1,0 +1,626 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="assets/xml/rss.xsl" media="all"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Kyle Barbary</title><link>http://www.kylebarbary.com/</link><description></description><atom:link href="http://www.kylebarbary.com/rss.xml" rel="self" type="application/rss+xml"></atom:link><language>en</language><lastBuildDate>Thu, 09 Apr 2020 05:54:41 GMT</lastBuildDate><generator>Nikola (getnikola.com)</generator><docs>http://blogs.law.harvard.edu/tech/rss</docs><item><title>Batch Normalization Backpropagation</title><link>http://www.kylebarbary.com/blog/batch-norm/</link><dc:creator>Kyle Barbary</dc:creator><description>&lt;div&gt;&lt;p&gt;Batch normalization is a technique for making neural networks easier to train.
+Although these days, any deep learning framework will implement batch norm and its derivative for you, it is useful to see how to derive the gradient of batch norm. It seems to be often left as "an exercise for the reader" in deep learning courses. I had some trouble getting the correct derivation of the gradient on the first try so I've outlined the derivation here.&lt;/p&gt;
+&lt;p&gt;Notation:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;span class="math"&gt;\(z_{ij}\)&lt;/span&gt;: Values after affine transformation (matrix multiplication by parameter &lt;span class="math"&gt;\(\mathbf{W}\)&lt;/span&gt;).&lt;/li&gt;
+&lt;li&gt;&lt;span class="math"&gt;\(\hat{z}_{ij}\)&lt;/span&gt;: Values after normalization.&lt;/li&gt;
+&lt;li&gt;&lt;span class="math"&gt;\(\tilde{z}_{ij}\)&lt;/span&gt;: Values after scaling by parameters &lt;span class="math"&gt;\(\gamma_i\)&lt;/span&gt; and &lt;span class="math"&gt;\(\beta_i\)&lt;/span&gt;.
+&lt;span class="math"&gt;\(f\)&lt;/span&gt;: Scalar cost function.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;where &lt;span class="math"&gt;\(i = 1...n_\rm{out}\)&lt;/span&gt; (number of layer outputs) and &lt;span class="math"&gt;\(j = 1...m\)&lt;/span&gt; (number of examples in batch).&lt;/p&gt;
+&lt;p&gt;Equations for batch normalization:&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\mu_i = \frac{1}{m} \sum_j z_{ij}
+\end{equation*}
+&lt;/div&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\sigma_i^2 = \frac{1}{m} \sum_j^m (z_{ij} - \mu_i)^2
+\end{equation*}
+&lt;/div&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\hat{z}_{ij} = \frac{z_{ij} - \mu_i}{\sqrt{\sigma_i^2 + \epsilon}}
+\end{equation*}
+&lt;/div&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\tilde{z}_{ij} = \gamma_i \hat{z}_{ij} + \beta_i
+\end{equation*}
+&lt;/div&gt;
+&lt;div class="section" id="goal"&gt;
+&lt;h2&gt;Goal&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Given: &lt;span class="math"&gt;\(\partial f / \partial \tilde{z}_{ij}\)&lt;/span&gt; the array of derivatives of the scalar loss &lt;span class="math"&gt;\(f\)&lt;/span&gt; with respect to the &lt;em&gt;output&lt;/em&gt; &lt;span class="math"&gt;\(\tilde{z}_{ij}\)&lt;/span&gt;.&lt;/li&gt;
+&lt;li&gt;Derive: &lt;span class="math"&gt;\(\partial f / \partial \gamma_i\)&lt;/span&gt;, &lt;span class="math"&gt;\(\partial f / \partial \beta_i\)&lt;/span&gt;, the vectors of derivatives with respect to our parameters and &lt;span class="math"&gt;\(\partial f / \partial z_{ij}\)&lt;/span&gt;, the array of derivatives with respect to the layer &lt;em&gt;inputs&lt;/em&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;We will start with the last equation, and derive the gradient with respect to the two parameters &lt;span class="math"&gt;\(\gamma_i\)&lt;/span&gt; and &lt;span class="math"&gt;\(\beta_i\)&lt;/span&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="derivation-partial-f-partial-gamma-i"&gt;
+&lt;h2&gt;Derivation: &lt;span class="math"&gt;\(\partial f / \partial \gamma_i\)&lt;/span&gt;&lt;/h2&gt;
+&lt;p&gt;We'll use the derivation of &lt;span class="math"&gt;\(\partial f / \partial \gamma_i\)&lt;/span&gt; to demonstrate the general method of using the chain rule. Using the chain rule, the parital derivative we're after can be written in terms of the partial derivative we are given, and one we will derive from the above equations:&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\frac{\partial f}{\partial \gamma_i} = \sum_{i'j'} \frac{\partial f}{\partial \tilde{z}_{i'j'}} \frac{\partial \tilde{z}_{i'j'}}{\partial \gamma_i}
+\end{equation*}
+&lt;/div&gt;
+&lt;p&gt;Note that, in general, we must always sum over &lt;span class="math"&gt;\(i'\)&lt;/span&gt; and &lt;span class="math"&gt;\(j'\)&lt;/span&gt; in ths manner, as &lt;span class="math"&gt;\(\gamma_i\)&lt;/span&gt; can affect &lt;span class="math"&gt;\(f\)&lt;/span&gt; through any entry in &lt;span class="math"&gt;\(\tilde{z}_{i'j'}\)&lt;/span&gt;. &lt;strong&gt;This is the key point&lt;/strong&gt;: even though &lt;span class="math"&gt;\(\tilde{z}\)&lt;/span&gt; and &lt;span class="math"&gt;\(\gamma\)&lt;/span&gt; both have the same size in the first dimension (indexed by &lt;span class="math"&gt;\(i\)&lt;/span&gt;), any entry in &lt;span class="math"&gt;\(\tilde{z}\)&lt;/span&gt; might depend on any entry in &lt;span class="math"&gt;\(\gamma\)&lt;/span&gt;: &lt;span class="math"&gt;\(\tilde{z}_{11}\)&lt;/span&gt; might depend on &lt;span class="math"&gt;\(\gamma_1\)&lt;/span&gt;, &lt;span class="math"&gt;\(\gamma_2\)&lt;/span&gt;, &lt;span class="math"&gt;\(\gamma_3\)&lt;/span&gt;, etc. and all these partial derivatives must be summed.&lt;/p&gt;
+&lt;p&gt;In this particular case, it happens to be simpler. We can see from the equation for &lt;span class="math"&gt;\(\tilde{z} that changing \)&lt;/span&gt; has no effect on &lt;span class="math"&gt;\(\tilde{z}_{i'j'}\)&lt;/span&gt; for &lt;span class="math"&gt;\(i' \ne i\)&lt;/span&gt;.
+Or in other words, &lt;span class="math"&gt;\(\partial \tilde{z}_{i'j'} / \partial \gamma_i = 0\)&lt;/span&gt; for &lt;span class="math"&gt;\(i' \ne i\)&lt;/span&gt;.
+So, only terms with &lt;span class="math"&gt;\(i' = i\)&lt;/span&gt; actually contribute to the sum &lt;span class="math"&gt;\(\sum_{i'j'}\)&lt;/span&gt;, and we can take &lt;span class="math"&gt;\(i'\)&lt;/span&gt; out of the sum and replace &lt;span class="math"&gt;\(i'\)&lt;/span&gt; with &lt;span class="math"&gt;\(i\)&lt;/span&gt; everywhere:&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{align*}
+\frac{\partial f}{\partial \gamma_i} &amp;amp;= \sum_{j'} \frac{\partial f}{\partial \tilde{z}_{ij'}} \frac{\partial \tilde{z}_{ij'}}{\partial \gamma_i} \\
+                                     &amp;amp;= \boxed{ \sum_{j'} \frac{\partial f}{\partial \tilde{z}_{ij'}}  \hat{z}_{ij'} }
+\end{align*}
+&lt;/div&gt;
+&lt;p&gt;Or in Python:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+dgamma = np.sum(dZtilde * Zhat, axis=1, keepdims=True)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="derivation-partial-f-partial-beta-i"&gt;
+&lt;h2&gt;Derivation: &lt;span class="math"&gt;\(\partial f / \partial \beta_i\)&lt;/span&gt;&lt;/h2&gt;
+&lt;p&gt;This one is easy. Following the same logic as above,&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{align*}
+\frac{\partial f}{\partial \beta_i} &amp;amp;= \sum_{j'} \frac{\partial f}{\partial \tilde{z}_{ij'}} \frac{\partial \tilde{z}_{ij'}}{\partial \beta_i} \\
+                                    &amp;amp;=  \boxed{ \sum_{j'} \frac{\partial f}{\partial \tilde{z}_{ij'}} }
+\end{align*}
+&lt;/div&gt;
+&lt;p&gt;In Python:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+dbeta = np.sum(dZtilde, axis=1, keepdims=True)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="derivation-partial-f-partial-z-ij"&gt;
+&lt;h2&gt;Derivation: &lt;span class="math"&gt;\(\partial f / \partial z_{ij}\)&lt;/span&gt;&lt;/h2&gt;
+&lt;p&gt;First, get the derivative with respect to &lt;span class="math"&gt;\(\hat{z}_{ij}\)&lt;/span&gt;:&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{align*}
+\frac{\partial f}{\partial \hat{z}_{ij}} &amp;amp;= \sum_{i'j'} \frac{\partial f}{\partial \tilde{z}_{i'j'}} \frac{\partial \tilde{z}_{i'j'}}{\partial \hat{z}_{ij}} \\
+                                         &amp;amp;= \sum_{i'j'} \frac{\partial f}{\partial \tilde{z}_{i'j'}}  \delta_{ii'} \delta{jj'} \gamma_i' \\
+                                         &amp;amp;= \boxed{ \frac{\partial f}{\partial \tilde{z}_{ij}} \gamma_i }
+\end{align*}
+&lt;/div&gt;
+&lt;p&gt;In Python:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+dZhat = dZtilde * gamma
+&lt;/pre&gt;
+&lt;p&gt;Now, &lt;strong&gt;the final and most tedious part&lt;/strong&gt;: given &lt;span class="math"&gt;\(\partial f / \partial \hat{z}_{ij}\)&lt;/span&gt;, go the rest of the way.&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\frac{\partial f}{\partial z_{ij}} = \sum_{i'j'} \frac{\partial f}{\partial \hat{z}_{i'j'}} \frac{\partial \hat{z}_{i'j'}}{\partial z_{ij}}
+\end{equation*}
+&lt;/div&gt;
+&lt;p&gt;Changing &lt;span class="math"&gt;\(z_{ij}\)&lt;/span&gt; has no effect on &lt;span class="math"&gt;\(\hat{z}_{i'j'}\)&lt;/span&gt; for &lt;span class="math"&gt;\(i' \ne i\)&lt;/span&gt;.
+Or in other words, &lt;span class="math"&gt;\(\frac{\partial \hat{z}_{i'j'}}{\partial z_{ij}} = 0\)&lt;/span&gt; for &lt;span class="math"&gt;\(i' \ne i\)&lt;/span&gt;.
+So, only terms with &lt;span class="math"&gt;\(i' = i\)&lt;/span&gt; actually contributes to the sum &lt;span class="math"&gt;\(\sum_{i'j'}\)&lt;/span&gt;, and we can take &lt;span class="math"&gt;\(i'\)&lt;/span&gt; out of the sum and replace &lt;span class="math"&gt;\(i'\)&lt;/span&gt; with &lt;span class="math"&gt;\(i\)&lt;/span&gt; everywhere:&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\frac{\partial f}{\partial z_{ij}} = \sum_{j'} \frac{\partial f}{\partial \hat{z}_{ij'}} \frac{\partial \hat{z}_{ij'}}{\partial z_{ij}}
+\end{equation*}
+&lt;/div&gt;
+&lt;p&gt;Substitute in the equation for &lt;span class="math"&gt;\(\hat{z}_{ij}\)&lt;/span&gt;:&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\frac{\partial f}{\partial z_{ij}} = \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} \frac{\partial}{\partial z_{ij}} \left( (z_{ij'} - \mu_i)(\sigma_i^2 + \epsilon)^{-1/2} \right)
+\end{equation*}
+&lt;/div&gt;
+&lt;p&gt;Expand the parital:&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\frac{\partial f}{\partial z_{ij}} = \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} \left( \frac{\partial z_{ij'}}{\partial z_{ij}} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{\partial \mu_i}{\partial z_{ij}} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{2} (z_{ij'} - \mu_i)(\sigma_i^2 + \epsilon)^{-3/2} \frac{\partial \sigma_i^2}{\partial z_{ij}} \right)
+\end{equation*}
+&lt;/div&gt;
+&lt;p&gt;For the first term, we realize that &lt;span class="math"&gt;\(\partial z_{ij'} / \partial z_{ij}\)&lt;/span&gt; is 1 if &lt;span class="math"&gt;\(j' = j\)&lt;/span&gt;, otherwise 0, so we can replace it with &lt;span class="math"&gt;\(\delta_{j,j'}\)&lt;/span&gt;:&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\frac{\partial z_{ij'}}{\partial z_{ij}} = \delta_{j, j'}
+\end{equation*}
+&lt;/div&gt;
+&lt;p&gt;For the second and third terms, we will need &lt;span class="math"&gt;\(\partial \mu_i / \partial z_{ij}\)&lt;/span&gt; and &lt;span class="math"&gt;\(\partial \sigma_i^2 / \partial z_{ij}\)&lt;/span&gt;. Substituting in the equations for &lt;span class="math"&gt;\(\mu_i\)&lt;/span&gt; and &lt;span class="math"&gt;\(\sigma_i^2\)&lt;/span&gt;,&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{align*}
+\frac{\partial \mu_i}{\partial z_{ij}}      &amp;amp;= \frac{1}{m} \sum_{j'=1}^m \frac{\partial z_{ij'}}{\partial z_{ij}} = \frac{1}{m} \\
+\frac{\partial \sigma_i^2}{\partial z_{ij}} &amp;amp;= \frac{2}{m} \sum_{j'=1}^m (z_{ij'} - \mu_i)\left(\frac{\partial z_{ij'}}{\partial z_{ij}} - \frac{\partial \mu_i}{\partial z_{ij}} \right) \\
+                                            &amp;amp;= \frac{2}{m} \sum_{j'=1}^m (z_{ij'} - \mu_i) \delta_{j,j'} - \frac{2}{m} \sum_{j'=1}^m  (z_{ij'} - \mu_i) \frac{1}{m} \\
+                                            &amp;amp;= \frac{2}{m} (z_{ij} - \mu_i) - \frac{2}{m^2} \Big( \sum_{j'=1}^m  z_{ij'} - \sum_{j'=1}^m \mu_i \Big) \\
+                                            &amp;amp;= \frac{2}{m} (z_{ij} - \mu_i) - \frac{2}{m^2} (m \mu_i - m \mu_i) \\
+                                            &amp;amp;= \frac{2}{m} (z_{ij} - \mu_i)
+\end{align*}
+&lt;/div&gt;
+&lt;p&gt;Plug these intermediate partial derivatives back into our main equation and then simplify:&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{align*}
+\frac{\partial f}{\partial z_{ij}} &amp;amp;= \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} \left( \delta_{j,j'} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{m} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{2} (z_{ij'} - \mu_i)(\sigma_i^2 + \epsilon)^{-3/2} \left(\frac{2}{m}\right)(z_{ij} - \mu_i) \right) \\
+                                   &amp;amp;= \frac{\partial f}{\partial \hat{z}_{ij}} (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{m} \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}}  (\sigma_i^2 + \epsilon)^{-1/2} - \frac{1}{m} \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} (z_{ij'} - \mu_i)(\sigma_i^2 + \epsilon)^{-3/2} (z_{ij} - \mu_i)
+\end{align*}
+&lt;/div&gt;
+&lt;p&gt;Realizing that some expressions in the last term can be replaced by &lt;span class="math"&gt;\(\hat{z}_{ij}\)&lt;/span&gt; and &lt;span class="math"&gt;\(\hat{z}_{ij'}\)&lt;/span&gt;, we finally get&lt;/p&gt;
+&lt;div class="math"&gt;
+\begin{equation*}
+\boxed{ \frac{\partial f}{\partial z_{ij}} = \frac{1}{m \sqrt{\sigma_i^2 + \epsilon}} \left( m \frac{\partial f}{\partial \hat{z}_{ij}} - \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} - \hat{z}_{ij} \sum_{j'=1}^m \frac{\partial f}{\partial \hat{z}_{ij'}} \hat{z}_{ij'} \right) }
+\end{equation*}
+&lt;/div&gt;
+&lt;p&gt;In Python:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+mu = np.mean(Z, axis=1, keepdims=True)
+sigma2 = np.mean((Z - mu)**2, axis=1, keepdims=True)
+dZ = (1. / (m * np.sqrt(sigma2 + epsilon))
+         * (m * dZhat
+            - np.sum(dZhat, axis=1, keepdims=True)
+            - Zhat * np.sum(dZhat * Zhat, axis=1, keepdims=True)))
+&lt;/pre&gt;
+&lt;/div&gt;&lt;/div&gt;</description><guid>http://www.kylebarbary.com/blog/batch-norm/</guid><pubDate>Sat, 12 May 2018 19:02:02 GMT</pubDate></item><item><title>The Joy of Code Refactoring</title><link>http://www.kylebarbary.com/blog/refactoring/</link><dc:creator>Kyle Barbary</dc:creator><description>&lt;div&gt;&lt;p&gt;&lt;em&gt;Originally published on Feb 29, 2016 here:&lt;/em&gt; &lt;a class="reference external" href="https://bids.berkeley.edu/news/joy-code-refactoring"&gt;https://bids.berkeley.edu/news/joy-code-refactoring&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;If you write software for your research, you have most likely had the
+experience of looking at your code and realizing it has become a
+tangled mess. Perhaps it has even gotten to the point where you, the
+original author, have a hard time remembering how all the pieces fit
+together. Don't despair! This is perfectly natural in research
+software; it is just time to &lt;em&gt;refactor&lt;/em&gt;.&lt;/p&gt;
+&lt;div class="section" id="what-is-refactoring"&gt;
+&lt;h2&gt;What is refactoring?&lt;/h2&gt;
+&lt;p&gt;Code refactoring is the process of restructuring existing computer
+code without changing its external behavior in order to make it easier
+to understand, reason about, or extend. Much has been written about
+refactoring in software engineering and computer science. The term
+itself has been in use since at least the early 1990s and the
+canonical reference, "Refactoring: improving the design of existing
+code" by Martin Fowler was published in 2001. Fowler even maintains a
+&lt;a class="reference external" href="http://www.refactoring.com"&gt;catalog&lt;/a&gt; of the specific types of code
+transformations that are considered refactorings. (Note that though I
+use the term "refactoring" in this post, the contents here also apply
+to a broader set of code cleaning and restructuring techniques that go
+beyond these atomic code transformations.)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="why-is-refactoring-important-for-researchers"&gt;
+&lt;h2&gt;Why is refactoring important for researchers?&lt;/h2&gt;
+&lt;p&gt;On the surface, it can seem hard to justify spending time working on
+your code only to have it do the exact same thing at the end of the
+day. Imagine being a student and explaining to an advisor that you
+have produced no new results, but rather have been spending your time
+making nebulous "improvements" to your code! However, such code
+restructuring is an investment that will make future development
+easier. The longer the lifetime of a piece of software and the more
+people that need to read and modify it, the more important refactoring
+becomes. In fact, I argue that computational scientists &lt;em&gt;in
+particular&lt;/em&gt; should view refactoring as a valuable and even inherent
+part of research software development. There are two reasons for this:&lt;/p&gt;
+&lt;ol class="arabic simple"&gt;
+&lt;li&gt;&lt;strong&gt;Scientists often don't know what the code they are writing is
+supposed to do before they write it.&lt;/strong&gt; For example, when reducing
+or modeling data, there may be peculiarities in the data that only
+become apparent after some analysis. The model or algorithm must
+then be improved to better describe the data or otherwise deal
+with the peculiarities. New requirements often mean that the way
+the code was originally structured is no longer optimal and the
+code should be restructured rather than tacking on new
+functionality to an existing structure that wasn't designed to
+handle it.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Research software often implements novel algorithms or applies
+existing algorithms to new problems.&lt;/strong&gt; Software readability is
+always important, but this aspect of research software makes
+readability paramount: The fine details of an algorithm
+implementation are very often important and, unless you have very
+detailed documentation, the only way to understand exactly what
+the code is doing is by reading it. If you are working in a
+collaboration or publishing your code, maximizing
+understandability will pay dividends in the long term: other
+researchers will be more likely to reuse the code rather than
+throwing up their hands and starting over because they can't
+understand it. Even if your future self is the only one who will
+read the code, it can be a good investment now to spend time
+improving readability, so &lt;em&gt;you&lt;/em&gt; don't throw up your hands and
+start over.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;In research collaborations, the cost of not refactoring is often paid
+by those who inherit responsibility for a piece of code. For example,
+I and a graduate student took over responsibility of some software
+that had been developed in our collaboration over the course of about
+three years. The code had grown to about 20,000 lines and included
+many unused code paths that had been relevant at some point in
+development, but were now only hindering understanding and preventing
+us from making necessary improvements. After several months of work
+spent understanding the code and refactoring it, were able to reduce
+the code base to about 2,200 lines and make it more robust and
+extensible in the process. This would have taken far less time overall
+if the code had been refactored iteratively during the original
+development.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="when-do-you-refactor"&gt;
+&lt;h2&gt;When do you refactor?&lt;/h2&gt;
+&lt;p&gt;How do you know when refactoring is needed? Typically, you'll notice a
+"code smell" - a surface indication that there is a deeper design
+problem. Perhaps you have a single function has grown to be hundreds
+of lines long, or perhaps a function has grown to accept tens of
+parameters. For me, the inability to quickly recognize what a given
+function or class is supposed to do is often a hint that a refactoring
+is needed. In the interest of space, I won't go into specifics of
+&lt;em&gt;how&lt;/em&gt; to refactor here, but the references listed below go into great
+detail. I will note however that having some sort of automated test(s)
+is very helpful for ensuring that the code still works as expected
+after refactoring.&lt;/p&gt;
+&lt;p&gt;In real-world research code, my general approach is to make the
+initial design as simple as possible and expect to refactor as I
+understand the problem better or as new requirements become
+obvious. This is based on an experience that over-designed code (code
+that tries to anticipate future requirements or does more than is
+required) is particularly detrimental to understandability. Much of my
+research code is in Python. In Python, this approach generally means
+that I start by mainly writing functions. Later on, it might become
+obvious that certain data structures and functions should be grouped
+together. Or perhaps I realize that
+&lt;a class="reference external" href="https://en.wikipedia.org/wiki/Polymorphism_(computer_science)"&gt;polymorphism&lt;/a&gt;
+would allow me to remove conditional statements spread throughout the
+code. At that time, I'll abstract some code into classes. There are
+many other aspects to refactoring, but the structure of classes and
+functions are the ones I think about most. I've found that this
+approach prevents prematurely choosing the &lt;a class="reference external" href="http://www.sandimetz.com/blog/2016/1/20/the-wrong-abstraction"&gt;wrong abstraction&lt;/a&gt;,
+which can be far more costly than refactoring. In the course of
+developing a new piece of software, I'll often do several refactorings
+that touch large parts of the code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="summing-up"&gt;
+&lt;h2&gt;Summing up&lt;/h2&gt;
+&lt;p&gt;By thinking about refactoring as a natural part of the development
+process, you will feel more in control of your code, making future
+development more enjoyable. The idea with refactoring is that "you do
+not look at your code as some frozen construct that is not susceptible
+to change. Instead, you see yourself as capable of maintaining the
+code in optimum shape, responding efficiently to new challenges and
+changing the code without fear." [4] Who knows, you might even come to
+find the refactoring process itself to be enjoyable!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="references"&gt;
+&lt;h2&gt;References&lt;/h2&gt;
+&lt;ol class="arabic simple"&gt;
+&lt;li&gt;"Refactoring: improving the design of existing code" by Martin
+Fowler, www.refactoring.com&lt;/li&gt;
+&lt;li&gt;"Refactoring to Patterns" by Joshua Kerievsky&lt;/li&gt;
+&lt;li&gt;"Clean Code: A Handbook of Agile Software Craftsmanship" by Robert
+Cecil Martin&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://www.infoq.com/articles/RefactoringMyths"&gt;http://www.infoq.com/articles/RefactoringMyths&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;&lt;/div&gt;</description><guid>http://www.kylebarbary.com/blog/refactoring/</guid><pubDate>Mon, 09 May 2016 00:00:00 GMT</pubDate></item><item><title>Five reasons to switch to Python 3</title><link>http://www.kylebarbary.com/blog/switch-to-python-3/</link><dc:creator>Kyle Barbary</dc:creator><description>&lt;div&gt;&lt;p&gt;I recently took the plunge and switched to using Python 3 on a daily
+basis. I found it to be surprisingly straightforward. As a newly
+minted Python 3 user, I am now licensed (perhaps even obligated) to
+nag Python 2 users about switching. Honestly, for scientific computing
+there are &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0465/"&gt;not yet&lt;/a&gt; any
+killer features in Python 3 that make a switch tempting. However,
+there are still some good reasons for scientific practitioners to
+switch. Here are five of them:&lt;/p&gt;
+&lt;div class="section" id="you-will-have-to-eventually"&gt;
+&lt;h2&gt;1. You will have to eventually.&lt;/h2&gt;
+&lt;p&gt;Python will be around for a long time. Python 2 will not. You'll
+have to switch eventually, so why not do it on your own time, well
+before Python 2 &lt;a class="reference external" href="http://legacy.python.org/dev/peps/pep-0373/"&gt;reaches end-of-life support&lt;/a&gt; in 2020?&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="it-s-not-that-hard"&gt;
+&lt;h2&gt;2. It's not that hard.&lt;/h2&gt;
+&lt;p&gt;Most numeric-heavy code (e.g., without much string handling or text
+I/O) will require few and straightforward changes.  If you have
+comprehensive tests for your code, switching to Python 3 is really just a
+matter of running the tests and looking up what needs to be changed
+for tests to pass. If you don't have tests, you probably developed
+the code by running it and seeing if it worked. In that case, run
+it with Python 3 and fix things until it works. If you are
+switching permanently, you can use the &lt;a class="reference external" href="https://wiki.python.org/moin/2to3"&gt;2to3&lt;/a&gt; tool to make most changes
+automatically. If you need to support both Python 2 and 3
+simultaneously, the &lt;a class="reference external" href="http://pythonhosted.org/six/"&gt;six&lt;/a&gt; library
+has made it relatively painless.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="at-this-point-it-won-t-get-much-easier"&gt;
+&lt;h2&gt;3. At this point it won't get much easier.&lt;/h2&gt;
+&lt;p&gt;The majority of widely-used third party packages &lt;a class="reference external" href="https://python3wos.appspot.com/"&gt;support Python 3&lt;/a&gt;. In particular, all the major
+packages for scientific work (NumPy, SciPy, Matplotlib, etc) have
+fully supported Python 3 for some time now. While it depends on
+what you use, the likelihood is that all packages you use already
+support Python 3. If you find one that doesn't, open an issue (or
+add a comment on an existing one) in the issue tracker for the
+package.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-will-soon-become-better-supported-than-python-2"&gt;
+&lt;h2&gt;4. Python 3 will soon become better supported than Python 2.&lt;/h2&gt;
+&lt;p&gt;This one is a bit of a prediction. As &lt;a class="reference external" href="http://astrofrog.github.io/blog/2015/05/09/2015-survey-results/"&gt;more and more developers
+switch to using Python 3 on a daily basis&lt;/a&gt;,
+new features in third-party packages will become better "tested"
+(through use) on Python 3. This is particularly true of smaller
+packages without full test coverage.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="be-part-of-the-solution"&gt;
+&lt;h2&gt;5. Be part of the solution.&lt;/h2&gt;
+&lt;p&gt;The Python 2 to 3 transition sort of sucks. The sooner the vast
+majority of the community transitions, the sooner we can all stop
+spending time stuck awkwardly between two similar but incompatible
+languages. Developers can spend less time dealing with the dual
+support and more time developing awesome new features.&lt;/p&gt;
+&lt;/div&gt;&lt;/div&gt;</description><guid>http://www.kylebarbary.com/blog/switch-to-python-3/</guid><pubDate>Sun, 23 Aug 2015 00:00:00 GMT</pubDate></item><item><title>Cython and multiple NumPy dtypes</title><link>http://www.kylebarbary.com/blog/cython-and-multiple-numpy-dtypes/</link><dc:creator>Kyle Barbary</dc:creator><description>&lt;div&gt;&lt;p&gt;Earlier this summer, I was attempting to use Cython to wrap a C library that
+deals with arrays. There's a excellent &lt;a class="reference external" href="https://github.com/cython/cython/wiki/tutorials-NumpyPointerToC"&gt;tutorial&lt;/a&gt; on the Cython wiki
+on this topic. In the example given there, the Python function can
+only accept arrays of a single datatype: C double (or equivalently,
+&lt;tt class="docutils literal"&gt;numpy.float64&lt;/tt&gt;). The cython function signature&lt;/p&gt;
+&lt;pre class="code cython"&gt;&lt;a name="rest_code_a6c6d3ce1cc245abb2b2351279f99c51-1"&gt;&lt;/a&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;multiply&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ndarray&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;double&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ndim&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mf"&gt;2&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;mode&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;"c"&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="nb"&gt;input&lt;/span&gt; &lt;span class="ow"&gt;not&lt;/span&gt; &lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;double&lt;/span&gt; &lt;span class="n"&gt;value&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;means that an error will be raised if the input array has any numpy
+dtype other than float64. But, why should the &lt;tt class="docutils literal"&gt;multiply&lt;/tt&gt; function
+operate only on arrays of doubles? Python users are used to having a
+single function transparently operate on numpy arrays of many
+different dtypes. Let's make the single &lt;tt class="docutils literal"&gt;multiply&lt;/tt&gt; function work on
+both float and double arrays!&lt;/p&gt;
+&lt;p&gt;This supposes that you have multiple C functions for
+different array types. We want our Python function to check the
+datatype of the input array (at runtime) and then &lt;em&gt;dispatch&lt;/em&gt; to the
+appropriate C function for that data type (or raise an Exception of
+the datatype is not supported).&lt;/p&gt;
+&lt;p&gt;I eventually found a post in a &lt;a class="reference external" href="https://groups.google.com/d/msg/cython-users/VW_AH2HEFfU/vmrl_QntubsJ"&gt;thread on cython-users&lt;/a&gt; that
+describes how to do this, and the following is based on that answer.&lt;/p&gt;
+&lt;p&gt;First, suppose we have two separate implementations of the C function for
+different data types:&lt;/p&gt;
+&lt;pre class="code c"&gt;&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-1"&gt;&lt;/a&gt;&lt;span class="cm"&gt;/*&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-2"&gt;&lt;/a&gt;&lt;span class="cm"&gt;c_multiply.c&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-3"&gt;&lt;/a&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-4"&gt;&lt;/a&gt;&lt;span class="cm"&gt;simple C functions that alters data passed in via a pointer&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-5"&gt;&lt;/a&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-6"&gt;&lt;/a&gt;&lt;span class="cm"&gt;*/&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-7"&gt;&lt;/a&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-8"&gt;&lt;/a&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="nf"&gt;c_multiply_dbl&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;double&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="kt"&gt;double&lt;/span&gt; &lt;span class="n"&gt;multiplier&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="kt"&gt;int&lt;/span&gt; &lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="kt"&gt;int&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-9"&gt;&lt;/a&gt;    &lt;span class="kt"&gt;int&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-10"&gt;&lt;/a&gt;    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="o"&gt;++&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-11"&gt;&lt;/a&gt;      &lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;multiplier&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-12"&gt;&lt;/a&gt;    &lt;span class="k"&gt;return&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-13"&gt;&lt;/a&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-14"&gt;&lt;/a&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-15"&gt;&lt;/a&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="nf"&gt;c_multiply_flt&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;float&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="kt"&gt;double&lt;/span&gt; &lt;span class="n"&gt;multiplier&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="kt"&gt;int&lt;/span&gt; &lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="kt"&gt;int&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-16"&gt;&lt;/a&gt;    &lt;span class="kt"&gt;int&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-17"&gt;&lt;/a&gt;    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="o"&gt;++&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-18"&gt;&lt;/a&gt;      &lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;multiplier&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-19"&gt;&lt;/a&gt;    &lt;span class="k"&gt;return&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;a name="rest_code_dd2da91d183547e8bace033121b629af-20"&gt;&lt;/a&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;The Cython code will be as follows:&lt;/p&gt;
+&lt;pre class="code cython"&gt;&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-1"&gt;&lt;/a&gt;&lt;span class="k"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;numpy&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="nn"&gt;np&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-2"&gt;&lt;/a&gt;&lt;span class="k"&gt;cimport&lt;/span&gt; &lt;span class="nn"&gt;numpy&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="nn"&gt;np&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-3"&gt;&lt;/a&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-4"&gt;&lt;/a&gt;&lt;span class="k"&gt;cdef&lt;/span&gt; &lt;span class="kr"&gt;extern&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-5"&gt;&lt;/a&gt;    &lt;span class="n"&gt;void&lt;/span&gt; &lt;span class="n"&gt;c_multiply_dbl&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;double&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;double&lt;/span&gt; &lt;span class="n"&gt;multiplier&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt; &lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-6"&gt;&lt;/a&gt;    &lt;span class="n"&gt;void&lt;/span&gt; &lt;span class="n"&gt;c_multiply_flt&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nb"&gt;float&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;double&lt;/span&gt; &lt;span class="n"&gt;multiplier&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt; &lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-7"&gt;&lt;/a&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-8"&gt;&lt;/a&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;multiply&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ndarray&lt;/span&gt; &lt;span class="nb"&gt;input&lt;/span&gt; &lt;span class="ow"&gt;not&lt;/span&gt; &lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;double&lt;/span&gt; &lt;span class="n"&gt;value&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-9"&gt;&lt;/a&gt;     &lt;span class="k"&gt;cdef&lt;/span&gt; &lt;span class="kt"&gt;int&lt;/span&gt; &lt;span class="nf"&gt;m&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nf"&gt;n&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-10"&gt;&lt;/a&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-11"&gt;&lt;/a&gt;     &lt;span class="c"&gt;# declare a numpy array of raw bytes (unsigned 8-bit integers)&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-12"&gt;&lt;/a&gt;     &lt;span class="c"&gt;# and assign it to a view of the input data.&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-13"&gt;&lt;/a&gt;     &lt;span class="k"&gt;cdef&lt;/span&gt; &lt;span class="kt"&gt;np&lt;/span&gt;.&lt;span class="kt"&gt;uint8_t&lt;/span&gt;[&lt;span class="p"&gt;:,&lt;/span&gt; &lt;span class="p"&gt;:]&lt;/span&gt; &lt;span class="nb"&gt;buffer&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-14"&gt;&lt;/a&gt;     &lt;span class="nb"&gt;buffer&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nb"&gt;input&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;view&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;uint8&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-15"&gt;&lt;/a&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-16"&gt;&lt;/a&gt;     &lt;span class="c"&gt;# get shape&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-17"&gt;&lt;/a&gt;     &lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nb"&gt;input&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;shape&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mf"&gt;0&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="nb"&gt;input&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;shape&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mf"&gt;1&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-18"&gt;&lt;/a&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-19"&gt;&lt;/a&gt;     &lt;span class="c"&gt;# choose the appropriate routine based&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-20"&gt;&lt;/a&gt;     &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="nb"&gt;input&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;dtype&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;float64&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-21"&gt;&lt;/a&gt;         &lt;span class="n"&gt;c_multiply_dbl&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;double&lt;/span&gt; &lt;span class="o"&gt;*&amp;gt;&amp;amp;&lt;/span&gt;&lt;span class="nb"&gt;buffer&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mf"&gt;0&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mf"&gt;0&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;value&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-22"&gt;&lt;/a&gt;     &lt;span class="k"&gt;elif&lt;/span&gt; &lt;span class="nb"&gt;input&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;dtype&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;float32&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-23"&gt;&lt;/a&gt;         &lt;span class="n"&gt;c_multiply_flt&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nb"&gt;float&lt;/span&gt; &lt;span class="o"&gt;*&amp;gt;&amp;amp;&lt;/span&gt;&lt;span class="nb"&gt;buffer&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mf"&gt;0&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mf"&gt;0&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;value&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-24"&gt;&lt;/a&gt;     &lt;span class="k"&gt;else&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+&lt;a name="rest_code_e09e5c8a40fd41938eb8e99b47923ffb-25"&gt;&lt;/a&gt;         &lt;span class="k"&gt;raise&lt;/span&gt; &lt;span class="ne"&gt;ValueError&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;"dtype {0} not supported"&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;format&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nb"&gt;input&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;dtype&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;The key line is &lt;tt class="docutils literal"&gt;buffer = input.view(np.uint8)&lt;/tt&gt; where buffer is
+declared at compile time as a 2-d numpy array of raw bytes. Having
+this compile-time type allows us to later perform the operation
+&lt;tt class="docutils literal"&gt;&amp;amp;buffer[0, 0]&lt;/tt&gt; in order to get the address of the underlying data
+buffer in the array. We would not have been allowed to perform this
+operation directly on the input array. Note that
+&lt;tt class="docutils literal"&gt;input.view(np.uint8)&lt;/tt&gt; does not copy the data in &lt;tt class="docutils literal"&gt;input&lt;/tt&gt; so this
+is a relatively cheap operation.&lt;/p&gt;
+&lt;p&gt;The code can then be built with the following &lt;tt class="docutils literal"&gt;setup.py&lt;/tt&gt; file:&lt;/p&gt;
+&lt;pre class="code python"&gt;&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-1"&gt;&lt;/a&gt;&lt;span class="ch"&gt;#!/usr/bin/env python&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-2"&gt;&lt;/a&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-3"&gt;&lt;/a&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;distutils.core&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;setup&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-4"&gt;&lt;/a&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;distutils.extension&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Extension&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-5"&gt;&lt;/a&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;Cython.Distutils&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;build_ext&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-6"&gt;&lt;/a&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-7"&gt;&lt;/a&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;numpy&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-8"&gt;&lt;/a&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-9"&gt;&lt;/a&gt;&lt;span class="n"&gt;setup&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-10"&gt;&lt;/a&gt;    &lt;span class="n"&gt;cmdclass&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s1"&gt;'build_ext'&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;build_ext&lt;/span&gt;&lt;span class="p"&gt;},&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-11"&gt;&lt;/a&gt;    &lt;span class="n"&gt;ext_modules&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Extension&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;"multiply"&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-12"&gt;&lt;/a&gt;                             &lt;span class="n"&gt;sources&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;"multiply.pyx"&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;"c_multiply.c"&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-13"&gt;&lt;/a&gt;                             &lt;span class="n"&gt;include_dirs&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;numpy&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get_include&lt;/span&gt;&lt;span class="p"&gt;()])],&lt;/span&gt;
+&lt;a name="rest_code_ac910f7699f84206a9144733a462e409-14"&gt;&lt;/a&gt;    &lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;and by then running &lt;tt class="docutils literal"&gt;python setup.py build_ext &lt;span class="pre"&gt;--inplace&lt;/span&gt;&lt;/tt&gt;. This creates
+a Python module &lt;tt class="docutils literal"&gt;multiply.so&lt;/tt&gt; that you can import in a Python session.
+We can verify that it works on 2-d arrays of both 32-bit and 64-bit floats!&lt;/p&gt;
+&lt;pre class="code python"&gt;&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-1"&gt;&lt;/a&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;numpy&lt;/span&gt; &lt;span class="kn"&gt;as&lt;/span&gt; &lt;span class="nn"&gt;np&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-2"&gt;&lt;/a&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;multiply&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-3"&gt;&lt;/a&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ones&lt;/span&gt;&lt;span class="p"&gt;((&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt; &lt;span class="n"&gt;dtype&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;float32&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-4"&gt;&lt;/a&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;multiply&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;multiply&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-5"&gt;&lt;/a&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;x&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-6"&gt;&lt;/a&gt;&lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;([[&lt;/span&gt; &lt;span class="mf"&gt;2.&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;  &lt;span class="mf"&gt;2.&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-7"&gt;&lt;/a&gt;       &lt;span class="p"&gt;[&lt;/span&gt; &lt;span class="mf"&gt;2.&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;  &lt;span class="mf"&gt;2.&lt;/span&gt;&lt;span class="p"&gt;]],&lt;/span&gt; &lt;span class="n"&gt;dtype&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;float32&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-8"&gt;&lt;/a&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ones&lt;/span&gt;&lt;span class="p"&gt;((&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt; &lt;span class="n"&gt;dtype&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;float64&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-9"&gt;&lt;/a&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;multiply&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;multiply&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-10"&gt;&lt;/a&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-11"&gt;&lt;/a&gt;&lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;([[&lt;/span&gt; &lt;span class="mf"&gt;2.&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;  &lt;span class="mf"&gt;2.&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;
+&lt;a name="rest_code_96369e134a3340709645b60916b8a6df-12"&gt;&lt;/a&gt;      &lt;span class="p"&gt;[&lt;/span&gt; &lt;span class="mf"&gt;2.&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;  &lt;span class="mf"&gt;2.&lt;/span&gt;&lt;span class="p"&gt;]])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;</description><guid>http://www.kylebarbary.com/blog/cython-and-multiple-numpy-dtypes/</guid><pubDate>Sun, 26 Oct 2014 12:00:00 GMT</pubDate></item><item><title>Julia versus NumPy arrays</title><link>http://www.kylebarbary.com/blog/julia-vs-numpy-arrays/</link><dc:creator>Kyle Barbary</dc:creator><description>&lt;div&gt;&lt;p&gt;&lt;a class="reference external" href="http://julialang.org"&gt;Julia&lt;/a&gt; is a new language with a focus on technical computing that
+has been getting a lot of &lt;a class="reference external" href="http://www.wired.com/wiredenterprise/2014/02/julia"&gt;press&lt;/a&gt; lately. It promises the ease of use
+of a dynamic language like Python while still achieving speeds near
+those of a compiled language like C. It does this using &lt;a class="reference external" href="http://en.wikipedia.org/wiki/Just-in-time_compilation"&gt;just-in-time
+compilation (JIT)&lt;/a&gt;. In short, Julia's use of JIT allows a programmer
+to write functions without type information.  When the function is
+called for the first time during program execution, the compiler
+inspects the types of the function arguments and compiles a special
+version of the function for those specific types, straight to native
+machine code. Subsequent calls to the function with the same types use
+the already-compiled version of the function.&lt;/p&gt;
+&lt;p&gt;Soon after Julia 0.1 was announced in 2012, Wes McKinney posted a
+&lt;a class="reference external" href="http://wesmckinney.com/blog/?p=475"&gt;blog entry&lt;/a&gt; pointing out that
+while Julia's micro-benchmarks are indeed impressive, they
+fail to represent what is a common use-case for many technical users:
+working with large arrays. He tested a simple example of taking an inner
+product of two arrays. Here is a Python/NumPy version:&lt;/p&gt;
+&lt;pre class="code python"&gt;&lt;a name="rest_code_48e100f4f93944078feea092c315fd43-1"&gt;&lt;/a&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;numpy.random&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;
+&lt;a name="rest_code_48e100f4f93944078feea092c315fd43-2"&gt;&lt;/a&gt;&lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;10000000&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_48e100f4f93944078feea092c315fd43-3"&gt;&lt;/a&gt;&lt;span class="n"&gt;y&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;10000000&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_48e100f4f93944078feea092c315fd43-4"&gt;&lt;/a&gt;
+&lt;a name="rest_code_48e100f4f93944078feea092c315fd43-5"&gt;&lt;/a&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;sum&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;  &lt;span class="c1"&gt;# &amp;lt;-- time this&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;This Python version was significantly faster than an equivalent Julia
+version (57.8 ms for Python versus 104.7 ms for Julia). This operation
+can be sped up by unwrapping the loop to avoid creating the temporary
+array &lt;tt class="docutils literal"&gt;x * y&lt;/tt&gt; before summing.  In Julia this can be done efficiently
+without the need for compiled extensions and yielded a time of 36
+ms. In Python, one needs to compile a C extension using a tool like
+Cython. While more arduous, this yielded a time of 14.5 ms, a factor
+of nearly 2.5 faster than the best Julia version.&lt;/p&gt;
+&lt;p&gt;Recently, I started checking out Julia and I wanted to see how this
+comparison has changed after the Julia 0.2 release.  I also wanted to
+see how the performance comparison depends on the size of the
+arrays. My expectation was that with NumPy arrays &lt;em&gt;the larger the
+array, the better the performance&lt;/em&gt;. This is because a larger fraction
+of execution time is spent in compiled C loops compared to the
+Python wrapper layer.&lt;/p&gt;
+&lt;p&gt;To aid in running timing tests, I used a &lt;tt class="docutils literal"&gt;@timeit&lt;/tt&gt; macro for Julia that
+mimics the behavior of the &lt;tt class="docutils literal"&gt;%timeit&lt;/tt&gt; magic in IPython. It is in a (very
+minimal) &lt;a class="reference external" href="https://github.com/kbarbary/TimeIt.jl"&gt;TimeIt.jl&lt;/a&gt; Julia package.&lt;/p&gt;
+&lt;div class="section" id="array-wise-expression-with-temporaries"&gt;
+&lt;h2&gt;Array-wise expression (with temporaries)&lt;/h2&gt;
+&lt;p&gt;In Python:&lt;/p&gt;
+&lt;pre class="code python"&gt;&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-1"&gt;&lt;/a&gt;&lt;span class="n"&gt;In&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt; &lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;numpy.random&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-2"&gt;&lt;/a&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-3"&gt;&lt;/a&gt;&lt;span class="n"&gt;In&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;10000000&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-4"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;     &lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-5"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;     &lt;span class="n"&gt;y&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-6"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;     &lt;span class="k"&gt;print&lt;/span&gt; &lt;span class="s2"&gt;"n ="&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;":"&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-7"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;     &lt;span class="o"&gt;%&lt;/span&gt;&lt;span class="n"&gt;timeit&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;sum&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-8"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-9"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;10&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;8.32&lt;/span&gt; &lt;span class="err"&gt;µ&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-10"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;8.57&lt;/span&gt; &lt;span class="err"&gt;µ&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-11"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;11.1&lt;/span&gt; &lt;span class="err"&gt;µ&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-12"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;33.2&lt;/span&gt; &lt;span class="err"&gt;µ&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-13"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;270&lt;/span&gt; &lt;span class="err"&gt;µ&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-14"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;3.5&lt;/span&gt; &lt;span class="n"&gt;ms&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_b27e84b340564182a7474484d21175f4-15"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;10000000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;10&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;55.8&lt;/span&gt; &lt;span class="n"&gt;ms&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;In Julia:&lt;/p&gt;
+&lt;pre class="code julia"&gt;&lt;a name="rest_code_2598267a6a964164811410db405cb280-1"&gt;&lt;/a&gt;&lt;span class="n"&gt;julia&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="kp"&gt;in&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="mi"&gt;10000000&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-2"&gt;&lt;/a&gt;           &lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-3"&gt;&lt;/a&gt;           &lt;span class="n"&gt;y&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-4"&gt;&lt;/a&gt;           &lt;span class="n"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;"n=&lt;/span&gt;&lt;span class="si"&gt;$n&lt;/span&gt;&lt;span class="s"&gt; : "&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-5"&gt;&lt;/a&gt;           &lt;span class="nd"&gt;@timeit&lt;/span&gt; &lt;span class="n"&gt;sum&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;.*&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-6"&gt;&lt;/a&gt;       &lt;span class="k"&gt;end&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-7"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;1.57&lt;/span&gt; &lt;span class="n"&gt;µs&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-8"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;2.13&lt;/span&gt; &lt;span class="n"&gt;µs&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-9"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;7.80&lt;/span&gt; &lt;span class="n"&gt;µs&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-10"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;64.60&lt;/span&gt; &lt;span class="n"&gt;µs&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-11"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;636.59&lt;/span&gt; &lt;span class="n"&gt;µs&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-12"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;5.97&lt;/span&gt; &lt;span class="n"&gt;ms&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_2598267a6a964164811410db405cb280-13"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;10000000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;10&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;77.88&lt;/span&gt; &lt;span class="n"&gt;ms&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;It seems that things have improved at least somewhat for Julia, as the
+time for the largest array is now only a factor of 1.4 slower than
+Python. More interesting is the scaling with array size. For small
+arrays (up to 1000 elements) Julia is actually &lt;em&gt;faster&lt;/em&gt; than
+Python/NumPy. For intermediate size arrays (100,000 elements), Julia
+is nearly 2.5 times &lt;em&gt;slower&lt;/em&gt; (and in fact, without the &lt;tt class="docutils literal"&gt;sum&lt;/tt&gt;, Julia
+is up to 4 times slower). Finally, at the largest array sizes, Julia
+catches up again. (It is unclear to me why; it seems like the
+Python/NumPy performance should scale linearly above n=100,000, but it
+does not.)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="unwrapped-version-no-temporaries"&gt;
+&lt;h2&gt;Unwrapped version (no temporaries)&lt;/h2&gt;
+&lt;p&gt;This operation can be sped up by summing the elements as we loop over
+the two arrays, rather than first allocating and filling a new array
+(&lt;tt class="docutils literal"&gt;x * y&lt;/tt&gt;) and then summing, in two separate steps.  In Python, to do
+this sort of thing efficiently, we would usually have to compile a
+special C extension, typically using a tool like &lt;a class="reference external" href="http://cython.org/"&gt;Cython&lt;/a&gt; that
+automatically takes care of much of the interface between C and
+Python.  Here is a piece of Cython code to do this:&lt;/p&gt;
+&lt;pre class="code python"&gt;&lt;a name="rest_code_8609d5458dac4bcdac49aea057e64872-1"&gt;&lt;/a&gt;&lt;span class="n"&gt;cimport&lt;/span&gt; &lt;span class="n"&gt;numpy&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;
+&lt;a name="rest_code_8609d5458dac4bcdac49aea057e64872-2"&gt;&lt;/a&gt;
+&lt;a name="rest_code_8609d5458dac4bcdac49aea057e64872-3"&gt;&lt;/a&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;inner&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ndarray&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;float64_t&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="n"&gt;x&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ndarray&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;float64_t&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+&lt;a name="rest_code_8609d5458dac4bcdac49aea057e64872-4"&gt;&lt;/a&gt;    &lt;span class="n"&gt;cdef&lt;/span&gt; &lt;span class="n"&gt;Py_ssize_t&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nb"&gt;len&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_8609d5458dac4bcdac49aea057e64872-5"&gt;&lt;/a&gt;    &lt;span class="n"&gt;cdef&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;float64_t&lt;/span&gt; &lt;span class="n"&gt;result&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mf"&gt;0.&lt;/span&gt;
+&lt;a name="rest_code_8609d5458dac4bcdac49aea057e64872-6"&gt;&lt;/a&gt;    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="nb"&gt;range&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+&lt;a name="rest_code_8609d5458dac4bcdac49aea057e64872-7"&gt;&lt;/a&gt;        &lt;span class="n"&gt;result&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="n"&gt;x&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;a name="rest_code_8609d5458dac4bcdac49aea057e64872-8"&gt;&lt;/a&gt;    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;result&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;Fortunately, NumPy already includes such a compiled function so we
+don't need to bother with the above version. Here are the timings:&lt;/p&gt;
+&lt;pre class="code python"&gt;&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-1"&gt;&lt;/a&gt;&lt;span class="n"&gt;In&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;5&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt; &lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;numpy&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;inner&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-2"&gt;&lt;/a&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-3"&gt;&lt;/a&gt;&lt;span class="n"&gt;In&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;6&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;10000000&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-4"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;     &lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-5"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;     &lt;span class="n"&gt;y&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-6"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;     &lt;span class="k"&gt;print&lt;/span&gt; &lt;span class="s2"&gt;"n ="&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;":"&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-7"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;     &lt;span class="o"&gt;%&lt;/span&gt;&lt;span class="n"&gt;timeit&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;inner&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-8"&gt;&lt;/a&gt;   &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-9"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;10&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;791&lt;/span&gt; &lt;span class="n"&gt;ns&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-10"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;833&lt;/span&gt; &lt;span class="n"&gt;ns&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-11"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;1.26&lt;/span&gt; &lt;span class="err"&gt;µ&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-12"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;6.6&lt;/span&gt; &lt;span class="err"&gt;µ&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-13"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;75.9&lt;/span&gt; &lt;span class="err"&gt;µ&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-14"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;1.14&lt;/span&gt; &lt;span class="n"&gt;ms&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_38e1201cbf7b4e1bb7fbc184cc35f2d8-15"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;10000000&lt;/span&gt; &lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;11.4&lt;/span&gt; &lt;span class="n"&gt;ms&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;Here is the corresponding function definition and timings in Julia:&lt;/p&gt;
+&lt;pre class="code julia"&gt;&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-1"&gt;&lt;/a&gt;&lt;span class="n"&gt;julia&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;function&lt;/span&gt; &lt;span class="n"&gt;inner&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-2"&gt;&lt;/a&gt;           &lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mf"&gt;0.&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-3"&gt;&lt;/a&gt;           &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;i&lt;/span&gt; &lt;span class="kp"&gt;in&lt;/span&gt; &lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="n"&gt;length&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-4"&gt;&lt;/a&gt;               &lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="n"&gt;x&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-5"&gt;&lt;/a&gt;           &lt;span class="k"&gt;end&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-6"&gt;&lt;/a&gt;           &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;s&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-7"&gt;&lt;/a&gt;       &lt;span class="k"&gt;end&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-8"&gt;&lt;/a&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-9"&gt;&lt;/a&gt;&lt;span class="n"&gt;julia&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt; &lt;span class="kp"&gt;in&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="mi"&gt;10000000&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-10"&gt;&lt;/a&gt;           &lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-11"&gt;&lt;/a&gt;           &lt;span class="n"&gt;y&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;rand&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-12"&gt;&lt;/a&gt;           &lt;span class="n"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;"n=&lt;/span&gt;&lt;span class="si"&gt;$n&lt;/span&gt;&lt;span class="s"&gt; : "&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-13"&gt;&lt;/a&gt;           &lt;span class="nd"&gt;@timeit&lt;/span&gt; &lt;span class="n"&gt;inner&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-14"&gt;&lt;/a&gt;       &lt;span class="k"&gt;end&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-15"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100000000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;18.52&lt;/span&gt; &lt;span class="n"&gt;ns&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-16"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;10000000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;175.91&lt;/span&gt; &lt;span class="n"&gt;ns&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-17"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;1.59&lt;/span&gt; &lt;span class="n"&gt;µs&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-18"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;15.75&lt;/span&gt; &lt;span class="n"&gt;µs&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-19"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;100000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;10000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;158.94&lt;/span&gt; &lt;span class="n"&gt;µs&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-20"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1000000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1000&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;1.73&lt;/span&gt; &lt;span class="n"&gt;ms&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;a name="rest_code_f9f7912683824604a27c51f73908adde-21"&gt;&lt;/a&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;10000000&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;100&lt;/span&gt; &lt;span class="n"&gt;loops&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;best&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mf"&gt;18.75&lt;/span&gt; &lt;span class="n"&gt;ms&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;loop&lt;/span&gt;
+&lt;/pre&gt;&lt;p&gt;For someone used to Python and the overheads you get when dealing with
+any Python objects, it's pretty incredible to see the near-perfect
+linear scaling in Julia all the way down to an array size of 10. For
+the smallest array size, Julia is nearly a factor of 50 faster than a
+compiled Python C extension.&lt;/p&gt;
+&lt;div class="admonition note"&gt;
+&lt;p class="first admonition-title"&gt;Note&lt;/p&gt;
+&lt;p class="last"&gt;Update: I've had trouble consistently reproducing the Julia performance for n=10 between Julia sessions. Timings on my machine seem to range from 18 ns to 70 ns (that is, the above timing is the best-case scenario). It is even slower when outside the &lt;tt class="docutils literal"&gt;for&lt;/tt&gt; loop. n=100 and above are pretty consistent though.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusions"&gt;
+&lt;h2&gt;Conclusions&lt;/h2&gt;
+&lt;p&gt;Finally, here are the timings relative to the compiled NumPy extension
+version:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+       n  numpy arraywise  julia arraywise  numpy.inner  julia inner
+      10           10.518            1.985        1.000        0.023
+     100           10.288            2.557        1.000        0.211
+    1000            8.810            6.190        1.000        1.262
+   10000            5.030            9.788        1.000        2.386
+  100000            3.557            8.387        1.000        2.094
+ 1000000            3.070            5.237        1.000        1.518
+10000000            4.895            6.832        1.000        1.645
+&lt;/pre&gt;
+&lt;p&gt;The bottom line of Wes McKinney's original post was that for large
+array operations, Julia can't beat the performance of NumPy +
+Cython. This is still true, although the gap seems slightly smaller in
+my tests.&lt;/p&gt;
+&lt;p&gt;However, I'm still very impressed with Julia. While Cython makes
+writing Python C extensions much easier, it still leaves much to be
+desired. For any non-trivial task, you need to have a firm
+understanding of two separate type systems as well as a knowledge of
+how one maps onto the other. In the example Cython &lt;tt class="docutils literal"&gt;inner()&lt;/tt&gt;
+function shown above, it is fairly obvious what is being done, but the
+type information would seem opaque to anyone only familiar with Python
+or only familiar with C.&lt;/p&gt;
+&lt;p&gt;In addition to its increased ease, Julia actually gives &lt;em&gt;better&lt;/em&gt;
+performance than Cython for array sizes of less than about 1000
+elements. While I sometimes work with large arrays, I often also work
+with medium-size or small arrays. In these cases, Cython couldn't match Julia,
+unless you're willing to wrap the array operations in more Cython code
+at a higher level.&lt;/p&gt;
+&lt;/div&gt;&lt;/div&gt;</description><guid>http://www.kylebarbary.com/blog/julia-vs-numpy-arrays/</guid><pubDate>Sun, 09 Feb 2014 00:00:00 GMT</pubDate></item></channel></rss>
